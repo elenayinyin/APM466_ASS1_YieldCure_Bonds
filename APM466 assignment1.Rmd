@@ -1,0 +1,224 @@
+---
+title: "APM assignment1"
+author: "Yu Yinyin"
+date: "2/7/2021"
+output: html_document
+---
+#Question 4a yield curve
+```{r}
+selected <- read.csv(file="selected10bonds.csv")
+library(jrvFinance)
+
+dates=c("2021-01-18", "2021-01-19","2021-01-20","2021-01-21","2021-01-22","2021-01-25","2021-01-26","2021-01-27","2021-01-28","2021-01-29")
+maturity=c("2021-03-01", "2021-09-01","2022-03-01","2022-08-01","2023-03-01","2023-06-01","2024-03-01","2024-09-01","2025-03-01","2025-09-01", "2026-03-01")
+
+dp1 = selected$DP1
+dp2 = selected$DP2
+dp3 = selected$DP3
+dp4 = selected$DP4
+dp5 = selected$DP5
+dp6 = selected$DP6
+dp7 = selected$DP7
+dp8 = selected$DP8
+dp9 = selected$DP9
+dp10 = selected$DP10
+dp = list(dp1, dp2, dp3, dp4, dp5, dp6, dp7, dp8, dp9, dp10)
+
+cp1 = selected$CP1
+cp2 = selected$CP2
+cp3 = selected$CP3
+cp4 = selected$CP4
+cp5 = selected$CP5
+cp6 = selected$CP6
+cp7 = selected$CP7
+cp8 = selected$CP8
+cp9 = selected$CP9
+cp10 = selected$CP10
+cp = list(cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10)
+
+
+allyield = list()
+for (i in 1:10) {
+  #loop over the 10 days
+  yield=c()
+  for (j in 1:11) {
+    #loop over the bonds with different maturity dates, under fixed settle date i
+    ytm = bond.yield(settle=dates[i],mature=maturity[j],coupon=selected$Coupon[j],freq=2,price=cp[[i]][j],"ACT/ACT",comp.freq=2,
+                   redemption_value = 100)
+    yield = append(yield, ytm)
+    #yield is a vector of 10 different maturity bonds on the same date
+  }
+  allyield[[i]] = yield
+}
+
+x = seq(0,5,by=0.5)
+plot(x, allyield[[1]], type="l", col="red", main = "Yield Curve (5-year)", xlab ="Years to Maturity" ,ylab = "YTM")
+lines(x, allyield[[2]], type = "l", col = "blue")
+lines(x, allyield[[3]], type = "l", col = "purple")
+lines(x, allyield[[4]], type = "l", col = "pink")
+lines(x, allyield[[5]], type = "l", col = "yellow")
+lines(x, allyield[[6]], type = "l", col = "green")
+lines(x, allyield[[7]], type = "l", col = "grey")
+lines(x, allyield[[8]], type = "l", col = "brown")
+lines(x, allyield[[9]], type = "l", col = "tan")
+lines(x,allyield[[10]], type = "l", col = "black")
+legend("topleft", legend = c(dates), col = c("red","blue","purple","pink","yellow","green","grey","brown","tan","black"),lty = 1,cex = 0.6)
+
+library(splines)
+plot(smooth.spline(x,allyield[[1]]),type = "l",col = "red", xlab = "Years to Maturity", ylab = "YTM", main = "Yield Curve (5-year interpolation)")
+lines(smooth.spline(x,allyield[[2]]), type = "l", col = "blue")
+lines(smooth.spline(x,allyield[[3]]), type = "l", col = "purple")
+lines(smooth.spline(x,allyield[[4]]), type = "l", col = "pink")
+lines(smooth.spline(x,allyield[[5]]), type = "l", col = "yellow")
+lines(smooth.spline(x,allyield[[6]]), type = "l", col = "green")
+lines(smooth.spline(x,allyield[[7]]), type = "l", col = "grey")
+lines(smooth.spline(x,allyield[[8]]), type = "l", col = "brown")
+lines(smooth.spline(x,allyield[[9]]), type = "l", col = "tan")
+lines(smooth.spline(x,allyield[[10]]), type = "l", col = "black")
+legend("topleft", legend=c("2021-1-18", "2021-1-19","2021-1-20","2021-1-21","2021-1-22","2021-1-25","2021-1-26","2021-1-27","2021-1-28","2021-1-29"),
+       col=c("red","blue","purple","pink","yellow","green","grey","brown","tan","black"),lty=1, cex=0.6)
+```
+
+
+
+
+
+#Question 4b spot rate
+```{r}
+#notice spot rate is a function of time
+terms = selected$Months_Left
+
+allspotrate = list()
+for (t in 1:10){
+    spotrates  = c()
+   for (i in 1:11){
+    if (i==1){
+    #on one fixed observed day t, the first bond has maturity < 6 months, use direct formula as following:
+      spotrate = -log(dp[[t]][i]/(selected$Coupon[i] * 100 / 2 + 100))/(1/12)}
+         #for bonds with maturity over 6 months 
+    else{
+      summation = 0
+      #all the previous spot rates are known
+      for(n in 1:(i-1)){
+        cashflow <- 1/2 * selected$Coupon[i]*100 * exp(-spotrates[n]*(terms[i]/12-n/2))
+        summation <-cashflow+summation
+      }
+      spotrate = -log((dp[[t]][i] -summation)/(100 + 1/2 * selected$Coupon[i]*100))/(terms[i]/12)
+    }
+    spotrates <- append(spotrates, spotrate)
+  }
+  allspotrate[[t]] <- spotrates
+}
+print(allspotrate)
+x = seq(0,5,by=0.5)
+plot(smooth.spline(x,allspotrate[[1]]),type = "l",col = "red", xlab = "Years to Maturity", ylab = "Spot Rate", main = "Spot Rate (5-year interpolation)")
+lines(smooth.spline(x,allspotrate[[2]]), type = "l", col = "blue")
+lines(smooth.spline(x,allspotrate[[3]]), type = "l", col = "purple")
+lines(smooth.spline(x,allspotrate[[4]]), type = "l", col = "pink")
+lines(smooth.spline(x, allspotrate[[5]]), type = "l", col = "yellow")
+lines(smooth.spline(x, allspotrate[[6]]), type = "l", col = "green")
+lines(smooth.spline(x, allspotrate[[7]]), type = "l", col = "grey")
+lines(smooth.spline(x, allspotrate[[8]]), type = "l", col = "brown")
+lines(smooth.spline(x, allspotrate[[9]]), type = "l", col = "tan")
+lines(smooth.spline(x,allspotrate[[10]]), type = "l", col = "black")
+legend("bottomright", legend = c(dates), col = c("red","blue","purple","pink","yellow","green","grey","brown","tan","black"), lty = 1,  cex = 0.6)
+
+
+```
+
+
+
+
+
+#Question 4c forward rate
+```{r}
+for (t in 1:10){
+  r1year=c(allspotrate[[t]][3], allspotrate[[t]][5], allspotrate[[t]][7], allspotrate[[t]][9], allspotrate[[t]][11]) 
+ 
+  clearrate[[t]]=r1year
+}
+print(clearrate)
+
+allforward = list()
+for (t in 1:10){
+  dailyforward = c()
+  for (i in 1:4){
+    rate = (clearrate[[t]][i+1]*(i+1)-clearrate[[t]][1])/i
+    dailyforward = append(dailyforward, rate)
+  }
+  allforward[[t]]=dailyforward
+}
+print(allforward)
+
+
+x = seq(1, 4 , by = 1)
+plot(smooth.spline(x,allforward[[1]]),type = "l",col = "red", xlab = "Year", ylab = "Forward Rate", main = "Forward Rate Curve")
+lines(smooth.spline(x,allforward[[2]]), type = "l", col = "blue")
+lines(smooth.spline(x,allforward[[3]]), type = "l", col = "purple")
+lines(smooth.spline(x,allforward[[4]]), type = "l", col = "pink")
+lines(smooth.spline(x, allforward[[5]]), type = "l", col = "yellow")
+lines(smooth.spline(x, allforward[[6]]), type = "l", col = "green")
+lines(smooth.spline(x, allforward[[7]]), type = "l", col = "grey")
+lines(smooth.spline(x, allforward[[8]]), type = "l", col = "brown")
+lines(smooth.spline(x, allforward[[9]]), type = "l", col = "tan")
+lines(smooth.spline(x,allforward[[10]]), type = "l", col = "black")
+legend("bottomright", legend = c(dates), col = c("red","blue","purple","pink","yellow","green","grey","brown","tan","black"), lty = 1,  cex = 0.6)
+
+
+```
+
+
+
+
+#Q5 covariance matrices
+```{r}
+print(allyield)
+
+finalyield = list()
+for (t in 1:10){
+  newyield = c(allyield[[t]][3], allyield[[t]][5], allyield[[t]][7], allyield[[t]][9], allyield[[t]][11])
+  finalyield[[t]] = newyield
+}
+
+print(finalyield)
+
+finalmatrix = matrix(unlist(finalyield), nrow = 5)
+# columns as 10 days and rows as different bonds
+
+logyieldmatrix = matrix(nrow=5, ncol=9)
+for (i in 1:5){
+  for (j in 1:9){
+    logyieldmatrix[i,j]=log(finalmatrix[i, j+1]/finalmatrix[i,j])
+  }
+}
+
+cov_logyield = cov(t(logyieldmatrix))
+
+
+print(allforward)
+finalforward = matrix(unlist(allforward), nrow=4)
+
+forwardmatrix = matrix(nrow=4, ncol=9)
+for (i in 1:4){
+  for (j in 1:9){
+    forwardmatrix[i,j]=log(finalforward[i,j+1]/finalforward[1,j])
+  }
+}
+
+cov_forward = cov(t(forwardmatrix))
+
+```
+
+
+
+#Q6 eigenvalues and eigenvectors
+```{r}
+eigenspace_yield = eigen(cov_logyield)
+eigenspace_yield$values
+eigenspace_yield$vectors
+
+eigenspace_forward = eigen(cov_forward)
+eigenspace_forward$values
+eigenspace_forward$vectors
+```
+
